@@ -9,22 +9,47 @@
 int main(int argc, char *argv[])
 {
     Display* display = XOpenDisplay(NULL);
-
     XSynchronize(display, True);
-    //    XSetErrorHandler(myErrorHandler);
-
     Window x11root = XDefaultRootWindow(display);
 
-    int x = 500;
-    int y = 500;
-    unsigned int width = 640;
-    unsigned int height = 480;
-    unsigned int borderWidth = 0;
-    long colorBlue = 0xff0000ff;
+    long colorBlue = 0xff0000ff; // shows up if the Qt window is not on top
 
-    Window x11w = XCreateSimpleWindow(display, x11root, x, y,
-                                      width, height, borderWidth, 1 /*magic number*/, colorBlue);
+    Window x11w = XCreateSimpleWindow(display, x11root, 0, 0, 640, 480, 0, 1 /*magic number*/, colorBlue);
     QGuiApplication app(argc, argv);
+
+    int leftMost = 0;
+    int rightMost = 0;
+    int topMost = 0;
+    int bottomMost = 0;
+    int leftMostPixel = INFINITY;
+    int rightMostPixel = -INFINITY;
+    int topMostPixel = INFINITY;
+    int bottomMostPixel = -INFINITY;
+    QList<QScreen*> screenList = app.screens();
+    for(int screenID = 0; screenID < screenList.length(); screenID++) {
+        QScreen* screen = screenList.at(screenID);
+        qDebug() << screenID << screen->geometry().y();
+        int screenLeftMostPixel = screen->geometry().x();
+        int screenRightMostPixel = screen->geometry().x() + screen->geometry().width();
+        int screenTopMostPixel = screen->geometry().y();
+        int screenBottomMostPixel = screen->geometry().y() + screen->geometry().height();
+        if(screenLeftMostPixel < leftMostPixel) {
+            leftMostPixel = screenLeftMostPixel;
+            leftMost = screenID;
+        }
+        if(screenRightMostPixel > rightMostPixel) {
+            rightMostPixel = screenRightMostPixel;
+            rightMost = screenID;
+        }
+        if(screenTopMostPixel < topMostPixel) {
+            topMostPixel = screenTopMostPixel;
+            topMost = screenID;
+        }
+        if(screenBottomMostPixel > bottomMostPixel) {
+            bottomMostPixel = screenBottomMostPixel;
+            bottomMost = screenID;
+        }
+    }
 
     QRect virtualGeometry = app.screens().at(0)->virtualGeometry();
 
@@ -61,10 +86,10 @@ int main(int argc, char *argv[])
     xev2.xclient.window = x11w;
     xev2.xclient.message_type = fullmons;
     xev2.xclient.format = 32;
-    xev2.xclient.data.l[0] = 0; /* your topmost monitor number */
-    xev2.xclient.data.l[1] = 1; /* bottommost */
-    xev2.xclient.data.l[2] = 0; /* leftmost */
-    xev2.xclient.data.l[3] = 1; /* rightmost */
+    xev2.xclient.data.l[0] = topMost; /* your topmost monitor number */
+    xev2.xclient.data.l[1] = bottomMost; /* bottommost */
+    xev2.xclient.data.l[2] = leftMost; /* leftmost */
+    xev2.xclient.data.l[3] = rightMost; /* rightmost */
     xev2.xclient.data.l[4] = 0; /* source indication */
 
     XSendEvent (display, DefaultRootWindow(display), False,
